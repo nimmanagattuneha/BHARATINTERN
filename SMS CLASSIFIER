@@ -1,0 +1,93 @@
+# Import necessary libraries
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import GridSearchCV
+
+# Load the SMS spam dataset (replace with your own dataset)
+url = "https://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamcollection.zip"
+df = pd.read_csv(url, compression='zip', sep='\t', names=["label", "message"])
+
+# Data Preprocessing
+df['label'] = df['label'].map({'ham': 0, 'spam': 1})
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(df['message'], df['label'], test_size=0.2, random_state=42)
+
+# Text Classification Pipeline (TF-IDF Vectorizer + Classifier)
+models = {
+    "Support Vector Machine": SVC(),
+    "Random Forest": RandomForestClassifier(),
+    "Naive Bayes": MultinomialNB(),
+    "Logistic Regression": LogisticRegression(),
+    "Gradient Boosting": GradientBoostingClassifier()
+}
+
+for name, model in models.items():
+    pipeline = make_pipeline(TfidfVectorizer(), model)
+    pipeline.fit(X_train, y_train)
+
+    # Make predictions
+    y_pred = pipeline.predict(X_test)
+
+    # Evaluate the model
+    print(f"\nResults for {name}:")
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"Accuracy: {accuracy:.2f}")
+
+    # Classification Report
+    print("Classification Report:")
+    print(classification_report(y_test, y_pred))
+
+    # Confusion Matrix
+    print("Confusion Matrix:")
+    print(confusion_matrix(y_test, y_pred))
+
+    # Cross-validation
+    cv_scores = cross_val_score(pipeline, df['message'], df['label'], cv=5)
+    print(f"Cross-validation Mean Accuracy: {cv_scores.mean():.2f}")
+
+# Hyperparameter tuning with GridSearchCV (example with Support Vector Machine)
+svm_pipeline = make_pipeline(TfidfVectorizer(), StandardScaler(with_mean=False), SVC())
+
+param_grid = {
+    'svc__C': [0.1, 1, 10],
+    'svc__gamma': [0.01, 0.1, 1],
+    'svc__kernel': ['linear', 'rbf']
+}
+
+grid_search = GridSearchCV(svm_pipeline, param_grid, cv=5)
+grid_search.fit(X_train, y_train)
+
+best_params = grid_search.best_params_
+print(f"\nBest Hyperparameters: {best_params}")
+
+# Use the best model for predictions
+best_model = grid_search.best_estimator_
+y_pred_best = best_model.predict(X_test)
+
+# Evaluate the best model
+print("\nResults for Best Model:")
+accuracy_best = accuracy_score(y_test, y_pred_best)
+print(f"Accuracy: {accuracy_best:.2f}")
+
+# Classification Report
+print("Classification Report:")
+print(classification_report(y_test, y_pred_best))
+
+# Confusion Matrix
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred_best))
+
+# Cross-validation for the best model
+cv_scores_best = cross_val_score(best_model, df['message'], df['label'], cv=5)
+print(f"Cross-validation Mean Accuracy: {cv_scores_best.mean():.2f}")
